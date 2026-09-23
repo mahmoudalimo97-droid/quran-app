@@ -10,73 +10,106 @@ jobs:
   build:
     name: Build Quran Android APK
     runs-on: ubuntu-latest
+    continue-on-error: false
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        continue-on-error: false
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+        continue-on-error: false
 
       - name: Install dependencies
-        run: npm install
+        continue-on-error: false
+        run: |
+          echo "=== Installing dependencies with legacy-peer-deps ==="
+          npm install --legacy-peer-deps
 
       - name: Build web application
+        continue-on-error: false
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: npm run build
+        run: |
+          echo "=== Building web application with Vite ==="
+          npm run build
+          echo "=== Checking build output in dist folder ==="
+          ls -la dist/
 
-      - name: Setup Java 17 (Temurin)
+      - name: Setup Java 21 (Temurin)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
+        continue-on-error: false
 
       - name: Add Android platform if not present
+        continue-on-error: false
         run: |
+          echo "=== Checking Android platform directory ==="
           if [ ! -d "android" ]; then
+            echo "Adding Capacitor Android platform..."
             npx cap add android
+          else
+            echo "Android platform directory already exists."
           fi
 
       - name: Configure Android App Name and Arabic RTL
+        continue-on-error: false
         run: |
-          # Set the Android app name to القرآن الكريم in strings.xml
+          echo "=== Configuring Android App Name and Arabic RTL ==="
           STRINGS_XML="android/app/src/main/res/values/strings.xml"
           if [ -f "$STRINGS_XML" ]; then
+            echo "Updating strings.xml..."
             sed -i 's/<string name="app_name">.*<\/string>/<string name="app_name">القرآن الكريم<\/string>/' "$STRINGS_XML"
             sed -i 's/<string name="title_activity_main">.*<\/string>/<string name="title_activity_main">القرآن الكريم<\/string>/' "$STRINGS_XML"
           fi
           
-          # Ensure android:supportsRtl="true" in AndroidManifest.xml
           MANIFEST_XML="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST_XML" ]; then
+            echo "Ensuring RTL support in AndroidManifest.xml..."
             if ! grep -q 'android:supportsRtl="true"' "$MANIFEST_XML"; then
               sed -i 's/<application/<application android:supportsRtl="true"/' "$MANIFEST_XML"
             fi
           fi
 
       - name: Sync Capacitor Android
-        run: npx cap sync android
+        continue-on-error: false
+        run: |
+          echo "=== Syncing web assets to Capacitor Android ==="
+          npx cap sync android
 
       - name: Ensure Android strings and RTL are applied after sync
+        continue-on-error: false
         run: |
+          echo "=== Verifying strings and RTL after sync ==="
           STRINGS_XML="android/app/src/main/res/values/strings.xml"
           if [ -f "$STRINGS_XML" ]; then
             sed -i 's/<string name="app_name">.*<\/string>/<string name="app_name">القرآن الكريم<\/string>/' "$STRINGS_XML"
             sed -i 's/<string name="title_activity_main">.*<\/string>/<string name="title_activity_main">القرآن الكريم<\/string>/' "$STRINGS_XML"
           fi
 
-      - name: Build Debug APK with Gradle
+      - name: Verify Environment and Android Project
+        continue-on-error: false
         run: |
+          echo "=== Inspecting android folder, Node, and Java versions ==="
+          ls -la android && node -v && java -version
+
+      - name: Build Debug APK with Gradle
+        continue-on-error: false
+        run: |
+          echo "=== Building Debug APK with Gradle assembleDebug ==="
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
+        continue-on-error: false
         with:
           name: quran-app-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
