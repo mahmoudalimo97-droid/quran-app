@@ -1,0 +1,83 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Quran Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build web application
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VITE_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: npm run build
+
+      - name: Setup Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Add Android platform if not present
+        run: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+
+      - name: Configure Android App Name and Arabic RTL
+        run: |
+          # Set the Android app name to القرآن الكريم in strings.xml
+          STRINGS_XML="android/app/src/main/res/values/strings.xml"
+          if [ -f "$STRINGS_XML" ]; then
+            sed -i 's/<string name="app_name">.*<\/string>/<string name="app_name">القرآن الكريم<\/string>/' "$STRINGS_XML"
+            sed -i 's/<string name="title_activity_main">.*<\/string>/<string name="title_activity_main">القرآن الكريم<\/string>/' "$STRINGS_XML"
+          fi
+          
+          # Ensure android:supportsRtl="true" in AndroidManifest.xml
+          MANIFEST_XML="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST_XML" ]; then
+            if ! grep -q 'android:supportsRtl="true"' "$MANIFEST_XML"; then
+              sed -i 's/<application/<application android:supportsRtl="true"/' "$MANIFEST_XML"
+            fi
+          fi
+
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - name: Ensure Android strings and RTL are applied after sync
+        run: |
+          STRINGS_XML="android/app/src/main/res/values/strings.xml"
+          if [ -f "$STRINGS_XML" ]; then
+            sed -i 's/<string name="app_name">.*<\/string>/<string name="app_name">القرآن الكريم<\/string>/' "$STRINGS_XML"
+            sed -i 's/<string name="title_activity_main">.*<\/string>/<string name="title_activity_main">القرآن الكريم<\/string>/' "$STRINGS_XML"
+          fi
+
+      - name: Build Debug APK with Gradle
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quran-app-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk

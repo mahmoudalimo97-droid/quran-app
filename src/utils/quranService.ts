@@ -106,10 +106,17 @@ export async function loadAllQuranData(): Promise<QuranSurahData[]> {
         }
       }
 
-      // Fetch from local bundle file
-      const response = await fetch('/data/quran-complete.json');
-      if (!response.ok) {
-        throw new Error(`Failed to load quran data: ${response.status}`);
+      // Fetch from local bundle file (support both relative './' and root path for web and Capacitor)
+      const dataUrl = `${import.meta.env.BASE_URL}data/quran-complete.json`;
+      let response = await fetch(dataUrl).catch(() => null);
+      if (!response || !response.ok) {
+        response = await fetch('./data/quran-complete.json').catch(() => null);
+      }
+      if (!response || !response.ok) {
+        response = await fetch('/data/quran-complete.json');
+      }
+      if (!response || !response.ok) {
+        throw new Error(`Failed to load quran data: ${response ? response.status : 'network error'}`);
       }
       const data: QuranSurahData[] = await response.json();
       quranCache = data;
