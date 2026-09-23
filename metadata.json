@@ -1,0 +1,7 @@
+{
+  "name": "القرآن الكريم وروحانيات | Al-Quran & Islamic Hub",
+  "description": "تطبيق إسلامي شامل يضم القرآن الكريم كاملاً بالترتيب، تلاوات الشيخ الحصري والشيخ المنشاوي، مواقيت الصلاة باللوكيشن، أذكار الصباح والمساء بدون نت، ومعرض خلفيات إسلامية.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
